@@ -90,15 +90,18 @@ async function createNFTMetadata(imageUrl, name, description, attributes) {
 }
 
 app.post('/generate-avatar-openAI', async (req, res) => {
-    const {name} = req.body;
+    const { name } = req.body;
     if (!name) {
+        console.log("Generate Avatar Request failed: 'name' not provided in request body");
         return res.status(400).send({ success: false, message: "Missing required 'name' in the body." });
     }
 
+    console.log(`Generating avatar for name: ${name}`);
     try {
         const imageUrl = await generateImage();
-        const filePath = await downloadImage(imageUrl, name); 
-        console.log("Image generated and saved successfully.")
+        console.log(`Avatar image URL received: ${imageUrl}`);
+        const filePath = await downloadImage(imageUrl, name);
+        console.log(`Image downloaded and saved at: ${filePath}`);
         res.status(200).send({
             success: true,
             message: "Image generated and saved successfully.",
@@ -114,31 +117,34 @@ app.post('/generate-avatar-openAI', async (req, res) => {
 app.post('/create-nft-pin-metadata', async (req, res) => {
     const { name, description } = req.body;
     if (!name || !description) {
+        console.log("Create NFT Metadata Request failed: Missing required fields");
         return res.status(400).send({ success: false, message: "Missing required fields: name or description." });
     }
 
+    console.log(`Creating NFT metadata for: ${name}`);
     const filePath = path.join(__dirname, `${name}.png`);
     if (!fs.existsSync(filePath)) {
+        console.log(`File not found at path: ${filePath}`);
         return res.status(404).send({ success: false, message: "Image file not found. Ensure the file path is correct." });
     }
 
     try {
-        // First, pin the image to IPFS
+        console.log(`Pinning image to IPFS for: ${name}`);
         const imagePinataResponse = await pinFileToIPFS(filePath, 'Generated Image');
         const imageIPFSUrl = `https://ipfs.io/ipfs/${imagePinataResponse.IpfsHash}`;
+        console.log(`Image pinned at URL: ${imageIPFSUrl}`);
 
-        // Attributes for the metadata
         const attributes = [
             { trait_type: "Category", value: "Art" },
             { trait_type: "Style", value: "Generated" },
             { trait_type: "Model", value: "Open-AI-dalle-3" }
         ];
 
-        // Create metadata with the IPFS URL of the pinned image
+        console.log(`Creating metadata JSON for: ${name}`);
         const metadataPinataResponse = await createNFTMetadata(imageIPFSUrl, name, description, attributes);
         const metadataIPFSUrl = `https://ipfs.io/ipfs/${metadataPinataResponse.IpfsHash}`;
+        console.log(`Metadata pinned at URL: ${metadataIPFSUrl}`);
 
-        // Send success response with both IPFS URLs
         res.status(200).send({
             success: true,
             message: "Image and metadata successfully pinned to IPFS.",
@@ -151,38 +157,37 @@ app.post('/create-nft-pin-metadata', async (req, res) => {
     }
 });
 
+
 app.post('/server-storage-clean', async (req, res) => {
     const { name } = req.body;
-    if (!name ) {
+    if (!name) {
+        console.log("Server Storage Clean Request failed: 'name' not provided");
         return res.status(400).send({ success: false, message: "Missing required fields: name." });
     }
 
+    console.log(`Attempting to delete image file for: ${name}`);
     const filePath = path.join(__dirname, `${name}.png`);
     if (!fs.existsSync(filePath)) {
+        console.log(`No file to delete at path: ${filePath}`);
         return res.status(404).send({ success: false, message: "Image file not found. Ensure the file path is correct." });
     }
 
     try {
-
-        // Delete the local image file
         fs.unlink(filePath, (err) => {
             if (err) {
                 console.error(`Failed to delete local image file: ${filePath}`, err);
+                res.status(500).send({ success: false, error: "Failed to delete file" });
             } else {
                 console.log(`Successfully deleted local image file: ${filePath}`);
+                res.status(200).send({ success: true, message: "Image Successfully removed." });
             }
         });
-         // Send success response with both IPFS URLs
-         res.status(200).send({
-            success: true,
-            message: "Image Successfully removed."
-        });
-
     } catch (err) {
-        console.error("Error in /server-storage-clean", err);
+        console.error("Error in /server-storage-clean:", err);
         res.status(500).send({ success: false, error: err.message });
     }
 });
+
 
 
 
