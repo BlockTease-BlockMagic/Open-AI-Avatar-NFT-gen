@@ -145,8 +145,26 @@ app.post('/create-nft-pin-metadata', async (req, res) => {
             imageIPFSUrl: imageIPFSUrl,
             metadataIPFSUrl: metadataIPFSUrl
         });
+    } catch (err) {
+        console.error("Error in /create-nft-pin-metadata:", err);
+        res.status(500).send({ success: false, error: err.message });
+    }
+});
 
-        // Delete the local image file after successful pinning
+app.post('/server-storage-clean', async (req, res) => {
+    const { name } = req.body;
+    if (!name ) {
+        return res.status(400).send({ success: false, message: "Missing required fields: name." });
+    }
+
+    const filePath = path.join(__dirname, `${name}.png`);
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).send({ success: false, message: "Image file not found. Ensure the file path is correct." });
+    }
+
+    try {
+
+        // Delete the local image file
         fs.unlink(filePath, (err) => {
             if (err) {
                 console.error(`Failed to delete local image file: ${filePath}`, err);
@@ -154,8 +172,14 @@ app.post('/create-nft-pin-metadata', async (req, res) => {
                 console.log(`Successfully deleted local image file: ${filePath}`);
             }
         });
+         // Send success response with both IPFS URLs
+         res.status(200).send({
+            success: true,
+            message: "Image Successfully removed."
+        });
+
     } catch (err) {
-        console.error("Error in /create-nft-pin-metadata:", err);
+        console.error("Error in /server-storage-clean", err);
         res.status(500).send({ success: false, error: err.message });
     }
 });
